@@ -15,7 +15,12 @@ class AppDatabase {
   Future<Database> get database async {
     if (_db != null) return _db!;
     final dbPath = p.join(await getDatabasesPath(), dbName);
-    _db = await openDatabase(dbPath, version: 1, onCreate: _onCreate);
+    _db = await openDatabase(
+      dbPath,
+      version: 2,
+      onCreate: _onCreate,
+      onUpgrade: _onUpgrade,
+    );
     return _db!;
   }
 
@@ -59,6 +64,18 @@ class AppDatabase {
     await db.execute(
       'CREATE UNIQUE INDEX idx_cat_budget ON category_budgets(category_id, month)',
     );
+    await db.execute('''
+      CREATE TABLE recurring_bills(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        amount_cents INTEGER NOT NULL,
+        category_id INTEGER NOT NULL,
+        period_type TEXT NOT NULL,
+        period_value INTEGER NOT NULL,
+        next_due_date TEXT NOT NULL,
+        note TEXT NOT NULL DEFAULT ''
+      )
+    ''');
 
     const seeds = <Map<String, Object>>[
       {'name': '餐饮', 'type': 'expense', 'icon': 'restaurant', 'color': 0xFFFF7043, 'sort': 1},
@@ -78,6 +95,23 @@ class AppDatabase {
     ];
     for (final c in seeds) {
       await db.insert('categories', {...c, 'builtin': 1});
+    }
+  }
+
+  Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('''
+        CREATE TABLE recurring_bills(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          amount_cents INTEGER NOT NULL,
+          category_id INTEGER NOT NULL,
+          period_type TEXT NOT NULL,
+          period_value INTEGER NOT NULL,
+          next_due_date TEXT NOT NULL,
+          note TEXT NOT NULL DEFAULT ''
+        )
+      ''');
     }
   }
 
