@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 
 import 'core/theme/app_theme.dart';
 import 'main_shell.dart';
+import 'state/account_provider.dart';
 import 'state/budget_provider.dart';
 import 'state/category_provider.dart';
 import 'state/recurring_bills_provider.dart';
@@ -37,6 +38,7 @@ class _CampusWalletAppState extends State<CampusWalletApp> {
       providers: [
         ChangeNotifierProvider(create: (_) => TransactionProvider()),
         ChangeNotifierProvider(create: (_) => CategoryProvider()),
+        ChangeNotifierProvider(create: (_) => AccountProvider()),
         ChangeNotifierProvider(create: (_) => RecurringBillsProvider()),
         ChangeNotifierProvider(create: (_) => BudgetProvider()),
         ChangeNotifierProvider(create: (_) => SettingsProvider()),
