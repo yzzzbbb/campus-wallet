@@ -1,5 +1,7 @@
 import 'dart:math' as math;
+import 'dart:typed_data';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -10,6 +12,7 @@ import '../../state/budget_provider.dart';
 import '../../state/category_provider.dart';
 import '../../state/transaction_provider.dart';
 import '../../widgets/amount_text.dart';
+import 'monthly_report.dart';
 import 'stats_data.dart';
 
 /// 统计页：本月分类占比 + 近 6 个月收支趋势 + 年度视图 + 月结复盘。
@@ -171,7 +174,7 @@ class _StatsBodyState extends State<_StatsBody> {
                 child: _HeatmapSection(cells: data.yearCells),
               ),
               const SizedBox(height: 16),
-              _ReviewCard(data: data),
+              _ReviewCard(data: data, monthKey: widget.monthKey),
             ],
           );
         },
@@ -601,9 +604,40 @@ class _LegendDot extends StatelessWidget {
 }
 
 class _ReviewCard extends StatelessWidget {
-  const _ReviewCard({required this.data});
+  const _ReviewCard({required this.data, required this.monthKey});
 
   final _StatsData data;
+  final String monthKey;
+
+  Future<void> _saveReport(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final y = int.parse(monthKey.substring(0, 4));
+      final m = int.parse(monthKey.substring(5, 7));
+      final report = buildMonthlyReportData(
+        month: DateTime(y, m),
+        totalExpenseCents: data.totalExpenseCents,
+        totalIncomeCents: data.monthlyPoints.isEmpty
+            ? 0
+            : data.monthlyPoints.last.incomeCents,
+        budgetCents: data.budgetCents,
+        pieEntries: data.pieEntries,
+        overruns: data.overruns,
+      );
+      final png = await renderReportPng(report);
+      final uri = await FilePicker.saveFile(
+        dialogTitle: '保存月报图片',
+        fileName: 'campus_wallet_report_$monthKey.png',
+        bytes: Uint8List.fromList(png),
+        mimeType: 'image/png',
+      );
+      if (uri != null) {
+        messenger.showSnackBar(SnackBar(content: Text('月报已保存：$uri')));
+      }
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('生成失败：$e')));
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -676,6 +710,15 @@ class _ReviewCard extends StatelessWidget {
                     ],
                   ),
                 ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => _saveReport(context),
+                icon: const Icon(Icons.image_outlined, size: 18),
+                label: const Text('保存月报图片'),
+              ),
+            ),
           ],
         ),
       ),
