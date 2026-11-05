@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -17,20 +15,8 @@ void main() {
   runApp(const CampusWalletApp());
 }
 
-class CampusWalletApp extends StatefulWidget {
+class CampusWalletApp extends StatelessWidget {
   const CampusWalletApp({super.key});
-
-  @override
-  State<CampusWalletApp> createState() => _CampusWalletAppState();
-}
-
-class _CampusWalletAppState extends State<CampusWalletApp> {
-  @override
-  void initState() {
-    super.initState();
-    unawaited(context.read<BudgetProvider>().load());
-    unawaited(context.read<SettingsProvider>().load());
-  }
 
   @override
   Widget build(BuildContext context) {

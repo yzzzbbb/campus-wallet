@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import '../core/data/dao.dart';
 
@@ -6,9 +6,11 @@ import '../core/data/dao.dart';
 class SettingsProvider extends ChangeNotifier {
   ThemeMode _themeMode = ThemeMode.system;
   bool _budgetAlertEnabled = false;
+  bool _loaded = false;
 
   ThemeMode get themeMode => _themeMode;
   bool get budgetAlertEnabled => _budgetAlertEnabled;
+  bool get loaded => _loaded;
 
   Future<void> load() async {
     final v = await Dao.instance.getSetting('theme_mode');
@@ -21,6 +23,7 @@ class SettingsProvider extends ChangeNotifier {
     }
     _budgetAlertEnabled =
         await Dao.instance.getSetting('budget_alert_enabled') == '1';
+    _loaded = true;
     notifyListeners();
   }
 
