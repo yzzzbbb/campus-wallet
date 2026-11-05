@@ -3,10 +3,12 @@ import 'package:provider/provider.dart';
 
 import '../../core/logic/finance_math.dart';
 import '../../core/models/category.dart';
+import '../../core/models/recurring_bill.dart';
 import '../../core/models/transaction.dart';
 import '../../core/theme/app_theme.dart';
 import '../../state/budget_provider.dart';
 import '../../state/category_provider.dart';
+import '../../state/recurring_bills_provider.dart';
 import '../../state/transaction_provider.dart';
 import '../../widgets/amount_text.dart';
 import '../../widgets/category_icon.dart';
@@ -42,6 +44,8 @@ class HomePage extends StatelessWidget {
               ),
             const SizedBox(height: 16),
             _MonthOverview(tx: tx, budget: budget, monthKey: monthKey),
+            const SizedBox(height: 16),
+            _DueBillsCard(tx: tx),
             const SizedBox(height: 16),
             _TodayTransactions(tx: tx, monthKey: monthKey),
           ],
@@ -450,6 +454,116 @@ class _TodayTransactions extends StatelessWidget {
           },
         ),
       ),
+    );
+  }
+}
+
+/// 周期账单到期提醒 + 一键入账
+class _DueBillsCard extends StatelessWidget {
+  const _DueBillsCard({required this.tx});
+
+  final TransactionProvider tx;
+
+  @override
+  Widget build(BuildContext context) {
+    final billsProvider = context.watch<RecurringBillsProvider>();
+    return FutureBuilder<List<RecurringBill>>(
+      future: billsProvider.dueBills(),
+      builder: (context, snap) {
+        final due = snap.data ?? const <RecurringBill>[];
+        if (due.isEmpty) return const SizedBox.shrink();
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.notifications_active_outlined,
+                        size: 18, color: AppColors.warn),
+                    SizedBox(width: 6),
+                    Text('周期账单到期',
+                        style: TextStyle(fontWeight: FontWeight.bold)),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                ...due.map(
+                  (b) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${b.name} · ${AmountText.formatCents(b.amountCents)}',
+                          ),
+                        ),
+                        Text(
+                          '${b.nextDueDate.month}月${b.nextDueDate.day}日',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton.icon(
+                    onPressed: () => _settle(context, due),
+                    icon: const Icon(Icons.check, size: 18),
+                    label: Text('一键入账（${due.length} 笔）'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _settle(BuildContext context, List<RecurringBill> due) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final billsProvider = context.read<RecurringBillsProvider>();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('确认入账？'),
+        content: Text(
+          '将记录 ${due.length} 笔支出并顺延下次到期日：\n'
+          '${due.map((b) => '· ${b.name} ${AmountText.formatCents(b.amountCents)}').join('\n')}',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('入账'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final now = DateTime.now();
+    for (final b in due) {
+      await tx.add(Transaction(
+        type: Transaction.typeExpense,
+        amountCents: b.amountCents,
+        categoryId: b.categoryId,
+        note: b.note.isEmpty ? b.name : '${b.name}：${b.note}',
+        occurredAt: now,
+        createdAt: now,
+      ));
+      await billsProvider.advance(b, now);
+    }
+    messenger.showSnackBar(
+      SnackBar(content: Text('已入账 ${due.length} 笔周期账单')),
     );
   }
 }
