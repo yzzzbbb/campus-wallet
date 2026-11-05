@@ -54,4 +54,20 @@ void main() {
     expect(await dao.getSetting('theme_mode'), isNull);
     expect((await dao.categories()).length, cats.length);
   });
+
+  test('budgetAlertEnabled 开关可保存并恢复', () async {
+    final sp = SettingsProvider();
+    await sp.load();
+    expect(sp.budgetAlertEnabled, isFalse);
+
+    await sp.setBudgetAlertEnabled(true);
+    final sp2 = SettingsProvider();
+    await sp2.load();
+    expect(sp2.budgetAlertEnabled, isTrue);
+
+    await sp2.setBudgetAlertEnabled(false);
+    final sp3 = SettingsProvider();
+    await sp3.load();
+    expect(sp3.budgetAlertEnabled, isFalse);
+  });
 }
