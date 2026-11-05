@@ -12,7 +12,7 @@ import '../../state/transaction_provider.dart';
 import '../../widgets/amount_text.dart';
 import 'stats_data.dart';
 
-/// 统计页：本月分类占比 + 近 6 个月收支趋势 + 月结复盘。
+/// 统计页：本月分类占比 + 近 6 个月收支趋势 + 年度视图 + 月结复盘。
 class StatsPage extends StatelessWidget {
   const StatsPage({super.key, this.monthKey});
 
@@ -45,6 +45,8 @@ class _StatsData {
     required this.totalExpenseCents,
     required this.budgetCents,
     required this.overruns,
+    required this.yearMonthly,
+    required this.yearCells,
   });
 
   final List<PieEntry> pieEntries;
@@ -52,6 +54,8 @@ class _StatsData {
   final int totalExpenseCents;
   final int budgetCents;
   final List<OverrunEntry> overruns;
+  final List<MonthTotal> yearMonthly;
+  final List<DayCell> yearCells;
 }
 
 class _StatsBody extends StatefulWidget {
@@ -107,6 +111,11 @@ class _StatsBodyState extends State<_StatsBody> {
       ));
     }
 
+    // 年度视图：全年月度支出 + 每日热力图
+    final year = now.year;
+    final expenseByMonth = await transactions.expenseByMonthOfYear(year);
+    final expenseByDay = await transactions.expenseByDayOfYear(year);
+
     return _StatsData(
       pieEntries: buildPieEntries(
         byCategory: byCategory,
@@ -120,6 +129,8 @@ class _StatsBodyState extends State<_StatsBody> {
         categories: categories,
         budgets: budgets,
       ),
+      yearMonthly: buildYearMonthly(year: year, expenseByMonth: expenseByMonth),
+      yearCells: buildCalendarCells(year: year, expenseByDay: expenseByDay),
     );
   }
 
@@ -148,6 +159,16 @@ class _StatsBodyState extends State<_StatsBody> {
               _SectionCard(
                 title: '近 6 个月收支',
                 child: _TrendSection(points: data.monthlyPoints),
+              ),
+              const SizedBox(height: 16),
+              _SectionCard(
+                title: '${DateTime.now().year}年 每月支出',
+                child: _YearBarSection(months: data.yearMonthly),
+              ),
+              const SizedBox(height: 16),
+              _SectionCard(
+                title: '${DateTime.now().year}年 日历热力图',
+                child: _HeatmapSection(cells: data.yearCells),
               ),
               const SizedBox(height: 16),
               _ReviewCard(data: data),
@@ -380,6 +401,177 @@ class _TrendSection extends StatelessWidget {
             ),
           ),
         ),
+      ],
+    );
+  }
+}
+
+/// 全年 12 个月支出柱状图
+class _YearBarSection extends StatelessWidget {
+  const _YearBarSection({required this.months});
+
+  final List<MonthTotal> months;
+
+  @override
+  Widget build(BuildContext context) {
+    var maxCents = 0;
+    for (final m in months) {
+      maxCents = math.max(maxCents, m.cents);
+    }
+    final maxY = maxCents <= 0 ? 100.0 : maxCents / 100.0 * 1.2;
+    final allZero = maxCents <= 0;
+    return SizedBox(
+      height: 180,
+      child: allZero
+          ? Center(
+              child: Text(
+                '今年还没有支出记录',
+                style: Theme.of(context)
+                    .textTheme
+                    .bodyMedium
+                    ?.copyWith(color: Theme.of(context).hintColor),
+              ),
+            )
+          : BarChart(
+              BarChartData(
+                maxY: maxY,
+                alignment: BarChartAlignment.spaceAround,
+                barGroups: [
+                  for (final m in months)
+                    BarChartGroupData(
+                      x: m.month - 1,
+                      barRods: [
+                        BarChartRodData(
+                          toY: m.cents / 100.0,
+                          color: AppColors.primary,
+                          width: 10,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ],
+                    ),
+                ],
+                titlesData: FlTitlesData(
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  leftTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 40,
+                      getTitlesWidget: (value, meta) => SideTitleWidget(
+                        meta: meta,
+                        child: Text(
+                          '¥${value.round()}',
+                          style: const TextStyle(fontSize: 9),
+                        ),
+                      ),
+                    ),
+                  ),
+                  bottomTitles: AxisTitles(
+                    sideTitles: SideTitles(
+                      showTitles: true,
+                      reservedSize: 20,
+                      getTitlesWidget: (value, meta) {
+                        final index = value.round();
+                        if ((value - index).abs() > 0.001 ||
+                            index < 0 ||
+                            index >= 12) {
+                          return const SizedBox.shrink();
+                        }
+                        return SideTitleWidget(
+                          meta: meta,
+                          child: Text(
+                            '${months[index].month}月',
+                            style: const TextStyle(fontSize: 9),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                gridData: const FlGridData(drawVerticalLine: false),
+                borderData: FlBorderData(show: false),
+              ),
+            ),
+    );
+  }
+}
+
+/// 日历热力图（GitHub 风格，周一起始）
+class _HeatmapSection extends StatelessWidget {
+  const _HeatmapSection({required this.cells});
+
+  final List<DayCell> cells;
+
+  Color _cellColor(BuildContext context, int level) {
+    final primary = AppColors.primary;
+    switch (level) {
+      case 1:
+        return primary.withValues(alpha: 0.3);
+      case 2:
+        return primary.withValues(alpha: 0.6);
+      case 3:
+        return primary;
+      default:
+        return Theme.of(context).colorScheme.surfaceContainerHighest;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GridView.count(
+          crossAxisCount: 7,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          mainAxisSpacing: 3,
+          crossAxisSpacing: 3,
+          children: [
+            for (final c in cells)
+              Container(
+                decoration: BoxDecoration(
+                  color: c.level < 0 ? Colors.transparent : _cellColor(context, c.level),
+                  borderRadius: BorderRadius.circular(3),
+                ),
+                height: 14,
+              ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 12,
+          children: [
+            _legend(context, 0, '无'),
+            _legend(context, 1, '少'),
+            _legend(context, 2, '中'),
+            _legend(context, 3, '多'),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _legend(BuildContext context, int level, String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 12,
+          height: 12,
+          decoration: BoxDecoration(
+            color: level == 0
+                ? Theme.of(context).colorScheme.surfaceContainerHighest
+                : _cellColor(context, level),
+            borderRadius: BorderRadius.circular(3),
+          ),
+        ),
+        const SizedBox(width: 4),
+        Text(label, style: const TextStyle(fontSize: 11)),
       ],
     );
   }
