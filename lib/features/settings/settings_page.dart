@@ -8,6 +8,7 @@ import 'package:provider/provider.dart';
 import '../../core/data/dao.dart';
 import '../../state/settings_provider.dart';
 import '../../widgets/amount_text.dart';
+import 'category_manage_page.dart';
 
 /// 设置页（MVP：深色模式 / 导出 CSV / 清空数据 / 关于）
 class SettingsPage extends StatelessWidget {
@@ -21,6 +22,15 @@ class SettingsPage extends StatelessWidget {
       body: ListView(
         children: [
           const SizedBox(height: 8),
+          ListTile(
+            leading: const Icon(Icons.category_outlined),
+            title: const Text('分类管理'),
+            subtitle: const Text('新增 / 改名 / 换图标与颜色 / 排序'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const CategoryManagePage()),
+            ),
+          ),
           ListTile(
             leading: const Icon(Icons.dark_mode_outlined),
             title: const Text('深色模式'),
