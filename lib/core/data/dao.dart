@@ -1,5 +1,6 @@
 import 'package:sqflite/sqflite.dart' hide Transaction;
 
+import '../models/account.dart';
 import '../models/category.dart';
 import '../models/category_budget.dart';
 import '../models/recurring_bill.dart';
@@ -142,6 +143,7 @@ class Dao {
     required Map<String, String> settings,
     required List<CategoryBudget> categoryBudgets,
     List<RecurringBill> recurringBills = const [],
+    List<Account> accounts = const [],
   }) async {
     final db = await _db;
     await db.transaction((txn) async {
@@ -150,6 +152,7 @@ class Dao {
       await txn.delete('settings');
       await txn.delete('categories');
       await txn.delete('recurring_bills');
+      await txn.delete('accounts');
       for (final c in categories) {
         await txn.insert(
           'categories',
@@ -182,6 +185,13 @@ class Dao {
         await txn.insert(
           'recurring_bills',
           r.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      for (final a in accounts) {
+        await txn.insert(
+          'accounts',
+          a.toMap(),
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
       }
@@ -259,6 +269,49 @@ class Dao {
       orderBy: 'next_due_date ASC, id ASC',
     );
     return rows.map(RecurringBill.fromMap).toList();
+  }
+
+  // ---------- accounts ----------
+
+  Future<List<Account>> accounts() async {
+    final rows = await (await _db).query(
+      'accounts',
+      orderBy: 'sort ASC, id ASC',
+    );
+    return rows.map(Account.fromMap).toList();
+  }
+
+  Future<int> insertAccount(Account a) async =>
+      (await _db).insert('accounts', a.toMap());
+
+  Future<void> updateAccount(Account a) async => (await _db)
+      .update('accounts', a.toMap(), where: 'id = ?', whereArgs: [a.id]);
+
+  Future<void> deleteAccount(int id) async =>
+      (await _db).delete('accounts', where: 'id = ?', whereArgs: [id]);
+
+  /// 某账户下流水数量（账户删除保护）
+  Future<int> transactionCountByAccount(int accountId) async {
+    final r = await (await _db).rawQuery(
+      'SELECT COUNT(*) AS c FROM transactions WHERE account_id = ?',
+      [accountId],
+    );
+    return r.first['c'] as int;
+  }
+
+  /// 删除所有非内置账户（测试重置用）
+  Future<void> deleteCustomAccounts() async {
+    final db = await _db;
+    await db.delete('accounts', where: 'builtin = 0');
+  }
+
+  /// 全部账户（备份用）
+  Future<List<Account>> allAccounts() async {
+    final rows = await (await _db).query(
+      'accounts',
+      orderBy: 'sort ASC, id ASC',
+    );
+    return rows.map(Account.fromMap).toList();
   }
 
   // ---------- settings ----------
