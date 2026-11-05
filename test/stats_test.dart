@@ -141,6 +141,42 @@ void main() {
 
       expect(result, hasLength(3));
     });
+
+    test('buildYearMonthly：12 个月、缺失月为 0', () {
+      final months = buildYearMonthly(
+        year: 2026,
+        expenseByMonth: {'2026-01': 100, '2026-03': 300},
+      );
+      expect(months, hasLength(12));
+      expect(months[0].cents, 100);
+      expect(months[1].cents, 0);
+      expect(months[2].cents, 300);
+      expect(months[11].cents, 0);
+    });
+
+    test('heatLevelFor 四档', () {
+      expect(heatLevelFor(0), 0);
+      expect(heatLevelFor(100), 1);
+      expect(heatLevelFor(1999), 1);
+      expect(heatLevelFor(2000), 2);
+      expect(heatLevelFor(9999), 2);
+      expect(heatLevelFor(10000), 3);
+    });
+
+    test('buildCalendarCells：周一起始、前导占位、档位映射', () {
+      // 2026-01-01 是周四 → 前导 3 格（周一/周二/周三）
+      final cells = buildCalendarCells(
+        year: 2026,
+        expenseByDay: {'2026-01-01': 15000, '2026-01-02': 500},
+      );
+      expect(cells, hasLength(3 + 365));
+      expect(cells[0].level, -1);
+      expect(cells[3].date, DateTime(2026, 1, 1));
+      expect(cells[3].level, 3);
+      expect(cells[4].date, DateTime(2026, 1, 2));
+      expect(cells[4].level, 1);
+      expect(cells[10].level, 0); // 1 月 8 日无支出
+    });
   });
 
   group('StatsPage widget', () {
@@ -208,8 +244,19 @@ void main() {
 
       expect(find.byType(PieChart), findsOneWidget);
       // 复盘卡片在列表下方，先滚动到可见再断言
-      await tester.scrollUntilVisible(find.text('本月复盘'), 300);
+      await tester.scrollUntilVisible(
+        find.text('本月复盘'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.textContaining('复盘'), findsOneWidget);
+      // 年度视图区块存在（日历热力图在复盘上方）
+      await tester.scrollUntilVisible(
+        find.textContaining('日历热力图'),
+        -200,
+        scrollable: find.byType(Scrollable).first,
+      );
+      expect(find.textContaining('日历热力图'), findsOneWidget);
       expect(tester.takeException(), isNull);
     });
 
