@@ -105,6 +105,21 @@ class Dao {
     await db.delete('settings');
   }
 
+  /// 删除所有非内置分类（测试重置用）
+  Future<void> deleteCustomCategories() async {
+    final db = await _db;
+    await db.delete('categories', where: 'builtin = 0');
+  }
+
+  /// 某分类下流水数量（分类删除保护）
+  Future<int> transactionCountByCategory(int categoryId) async {
+    final r = await (await _db).rawQuery(
+      'SELECT COUNT(*) AS c FROM transactions WHERE category_id = ?',
+      [categoryId],
+    );
+    return r.first['c'] as int;
+  }
+
   // ---------- settings ----------
 
   Future<String?> getSetting(String key) async {

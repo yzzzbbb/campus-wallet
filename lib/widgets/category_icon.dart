@@ -30,6 +30,8 @@ class CategoryIcon extends StatelessWidget {
 
   static List<String> get iconNames => _icons.keys.toList();
 
+  static IconData iconDataOf(String name) => _icons[name] ?? Icons.category;
+
   @override
   Widget build(BuildContext context) =>
       Icon(_icons[icon] ?? Icons.category, color: Color(color), size: size);
