@@ -1,5 +1,6 @@
 import 'package:campus_wallet/core/data/app_database.dart';
 import 'package:campus_wallet/core/data/dao.dart';
+import 'package:campus_wallet/core/models/account.dart';
 import 'package:campus_wallet/core/models/category.dart';
 import 'package:campus_wallet/core/models/recurring_bill.dart';
 import 'package:campus_wallet/core/models/transaction.dart';
@@ -27,6 +28,7 @@ void main() {
     await Dao.instance.clearAllData();
     await Dao.instance.clearRecurringBills();
     await Dao.instance.deleteCustomCategories();
+    await Dao.instance.deleteCustomAccounts();
   });
 
   Future<void> seedData() async {
@@ -64,6 +66,12 @@ void main() {
       periodValue: 15,
       nextDueDate: DateTime(2026, 11, 15),
     ));
+    await dao.insertAccount(Account(
+      name: '支付宝',
+      icon: 'qr_code',
+      color: 0xFF1565C0,
+      sort: 99,
+    ));
   }
 
   test('buildBackupJson 包含全部数据', () async {
@@ -76,6 +84,7 @@ void main() {
     expect(json.contains('"theme_mode": "dark"'), isTrue);
     expect(json.contains('"limit_cents": 50000'), isTrue);
     expect(json.contains('视频会员'), isTrue);
+    expect(json.contains('支付宝'), isTrue);
   });
 
   test('restoreFromJson 完整回滚数据', () async {
@@ -86,6 +95,7 @@ void main() {
     await Dao.instance.clearAllData();
     await Dao.instance.clearRecurringBills();
     await Dao.instance.deleteCustomCategories();
+    await Dao.instance.deleteCustomAccounts();
     await BackupService.restoreFromJson(json);
 
     final dao = Dao.instance;
@@ -102,6 +112,8 @@ void main() {
     final bills = await dao.allRecurringBills();
     expect(bills, hasLength(1));
     expect(bills.first.name, '视频会员');
+    final accounts = await dao.allAccounts();
+    expect(accounts.any((a) => a.name == '支付宝'), isTrue);
   });
 
   test('恢复坏 JSON 抛错且不破坏现有数据', () async {
