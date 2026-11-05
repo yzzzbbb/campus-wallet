@@ -11,6 +11,7 @@ import 'package:provider/provider.dart';
 import '../../core/data/dao.dart';
 import '../../state/settings_provider.dart';
 import '../../widgets/amount_text.dart';
+import '../bills/recurring_bills_page.dart';
 import 'backup_service.dart';
 import 'category_manage_page.dart';
 
@@ -33,6 +34,15 @@ class SettingsPage extends StatelessWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const CategoryManagePage()),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.receipt_long_outlined),
+            title: const Text('周期账单'),
+            subtitle: const Text('订阅、话费、健身卡等固定支出提醒'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const RecurringBillsPage()),
             ),
           ),
           ListTile(
