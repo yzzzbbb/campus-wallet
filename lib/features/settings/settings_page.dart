@@ -9,6 +9,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/data/dao.dart';
+import '../../state/notification_service.dart';
 import '../../state/settings_provider.dart';
 import '../../widgets/amount_text.dart';
 import '../bills/recurring_bills_page.dart';
@@ -44,6 +45,18 @@ class SettingsPage extends StatelessWidget {
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const RecurringBillsPage()),
             ),
+          ),
+          SwitchListTile(
+            secondary: const Icon(Icons.notifications_active_outlined),
+            title: const Text('预算提醒'),
+            subtitle: const Text('打开应用时检查预算使用率，超 80% 或超支时本地通知'),
+            value: settings.budgetAlertEnabled,
+            onChanged: (v) async {
+              if (v) {
+                await NotificationService.instance.requestPermission();
+              }
+              await settings.setBudgetAlertEnabled(v);
+            },
           ),
           ListTile(
             leading: const Icon(Icons.dark_mode_outlined),
