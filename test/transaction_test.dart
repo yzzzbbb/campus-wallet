@@ -4,6 +4,7 @@ import 'package:campus_wallet/core/logic/finance_math.dart';
 import 'package:campus_wallet/core/models/transaction.dart';
 import 'package:campus_wallet/features/transaction/transaction_edit_page.dart';
 import 'package:campus_wallet/features/transaction/transaction_list_page.dart';
+import 'package:campus_wallet/state/account_provider.dart';
 import 'package:campus_wallet/state/category_provider.dart';
 import 'package:campus_wallet/state/transaction_provider.dart';
 import 'package:flutter/material.dart';
@@ -35,6 +36,7 @@ void main() {
         providers: [
           ChangeNotifierProvider.value(value: tp),
           ChangeNotifierProvider.value(value: cp),
+          ChangeNotifierProvider(create: (_) => AccountProvider()),
         ],
         child: MaterialApp(home: home),
       ),
