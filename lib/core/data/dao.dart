@@ -1,0 +1,158 @@
+import 'package:sqflite/sqflite.dart' hide Transaction;
+
+import '../models/category.dart';
+import '../models/category_budget.dart';
+import '../models/transaction.dart';
+import 'app_database.dart';
+
+/// 数据访问层（契约：禁止改公开方法签名）
+class Dao {
+  Dao._();
+
+  static final Dao instance = Dao._();
+
+  Future<Database> get _db => AppDatabase.instance.database;
+
+  // ---------- categories ----------
+
+  Future<List<Category>> categories() async {
+    final rows = await (await _db).query(
+      'categories',
+      orderBy: 'type DESC, sort ASC, id ASC',
+    );
+    return rows.map(Category.fromMap).toList();
+  }
+
+  Future<int> insertCategory(Category c) async =>
+      (await _db).insert('categories', c.toMap());
+
+  Future<void> updateCategory(Category c) async => (await _db)
+      .update('categories', c.toMap(), where: 'id = ?', whereArgs: [c.id]);
+
+  Future<void> deleteCategory(int id) async =>
+      (await _db).delete('categories', where: 'id = ?', whereArgs: [id]);
+
+  // ---------- transactions ----------
+
+  Future<int> insertTransaction(Transaction t) async =>
+      (await _db).insert('transactions', t.toMap());
+
+  Future<void> updateTransaction(Transaction t) async => (await _db).update(
+        'transactions',
+        t.toMap(),
+        where: 'id = ?',
+        whereArgs: [t.id],
+      );
+
+  Future<void> deleteTransaction(int id) async =>
+      (await _db).delete('transactions', where: 'id = ?', whereArgs: [id]);
+
+  /// 某月流水，按时间倒序
+  Future<List<Transaction>> transactionsOfMonth(String monthKey) async {
+    final rows = await (await _db).query(
+      'transactions',
+      where: 'substr(occurred_at, 1, 7) = ?',
+      whereArgs: [monthKey],
+      orderBy: 'occurred_at DESC, id DESC',
+    );
+    return rows.map(Transaction.fromMap).toList();
+  }
+
+  Future<int> monthExpenseCents(String monthKey) async {
+    final r = await (await _db).rawQuery(
+      "SELECT COALESCE(SUM(amount_cents), 0) AS s FROM transactions "
+      "WHERE type = 'expense' AND substr(occurred_at, 1, 7) = ?",
+      [monthKey],
+    );
+    return r.first['s'] as int;
+  }
+
+  Future<int> monthIncomeCents(String monthKey) async {
+    final r = await (await _db).rawQuery(
+      "SELECT COALESCE(SUM(amount_cents), 0) AS s FROM transactions "
+      "WHERE type = 'income' AND substr(occurred_at, 1, 7) = ?",
+      [monthKey],
+    );
+    return r.first['s'] as int;
+  }
+
+  /// 某月各分类支出合计：category_id -> cents
+  Future<Map<int, int>> expenseByCategory(String monthKey) async {
+    final rows = await (await _db).rawQuery(
+      "SELECT category_id, SUM(amount_cents) AS s FROM transactions "
+      "WHERE type = 'expense' AND substr(occurred_at, 1, 7) = ? GROUP BY category_id",
+      [monthKey],
+    );
+    return {
+      for (final r in rows) r['category_id'] as int: r['s'] as int,
+    };
+  }
+
+  /// 全部流水（导出用），按时间升序
+  Future<List<Transaction>> allTransactions() async {
+    final rows = await (await _db).query(
+      'transactions',
+      orderBy: 'occurred_at ASC, id ASC',
+    );
+    return rows.map(Transaction.fromMap).toList();
+  }
+
+  /// 清空流水 / 配额 / 设置，保留分类表
+  Future<void> clearAllData() async {
+    final db = await _db;
+    await db.delete('transactions');
+    await db.delete('category_budgets');
+    await db.delete('settings');
+  }
+
+  // ---------- settings ----------
+
+  Future<String?> getSetting(String key) async {
+    final rows = await (await _db)
+        .query('settings', where: 'key = ?', whereArgs: [key], limit: 1);
+    return rows.isEmpty ? null : rows.first['value'] as String;
+  }
+
+  Future<void> setSetting(String key, String value) async => (await _db).insert(
+        'settings',
+        {'key': key, 'value': value},
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+
+  // ---------- category budgets ----------
+
+  Future<List<CategoryBudget>> budgetsOfMonth(String month) async {
+    final rows = await (await _db).query(
+      'category_budgets',
+      where: 'month = ?',
+      whereArgs: [month],
+    );
+    return rows.map(CategoryBudget.fromMap).toList();
+  }
+
+  /// 设置或覆盖某分类某月配额；limitCents <= 0 表示删除配额
+  Future<void> setCategoryBudget({
+    required int categoryId,
+    required String month,
+    required int limitCents,
+  }) async {
+    final db = await _db;
+    if (limitCents <= 0) {
+      await db.delete(
+        'category_budgets',
+        where: 'category_id = ? AND month = ?',
+        whereArgs: [categoryId, month],
+      );
+      return;
+    }
+    await db.insert(
+      'category_budgets',
+      {
+        'category_id': categoryId,
+        'month': month,
+        'limit_cents': limitCents,
+      },
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+}
