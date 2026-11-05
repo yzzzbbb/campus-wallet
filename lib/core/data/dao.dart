@@ -179,6 +179,32 @@ class Dao {
     });
   }
 
+  /// 某年每月支出合计：'YYYY-MM' -> cents（年度视图）
+  Future<Map<String, int>> expenseByMonthOfYear(int year) async {
+    final rows = await (await _db).rawQuery(
+      "SELECT substr(occurred_at, 1, 7) AS m, SUM(amount_cents) AS s "
+      "FROM transactions WHERE type = 'expense' AND substr(occurred_at, 1, 4) = ? "
+      "GROUP BY m",
+      [year.toString()],
+    );
+    return {
+      for (final r in rows) r['m'] as String: r['s'] as int,
+    };
+  }
+
+  /// 某年每天支出合计：'YYYY-MM-DD' -> cents（日历热力图）
+  Future<Map<String, int>> expenseByDayOfYear(int year) async {
+    final rows = await (await _db).rawQuery(
+      "SELECT substr(occurred_at, 1, 10) AS d, SUM(amount_cents) AS s "
+      "FROM transactions WHERE type = 'expense' AND substr(occurred_at, 1, 4) = ? "
+      "GROUP BY d",
+      [year.toString()],
+    );
+    return {
+      for (final r in rows) r['d'] as String: r['s'] as int,
+    };
+  }
+
   // ---------- recurring bills ----------
 
   Future<List<RecurringBill>> recurringBills() async {
