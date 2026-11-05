@@ -1,5 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
@@ -8,6 +11,7 @@ import 'package:provider/provider.dart';
 import '../../core/data/dao.dart';
 import '../../state/settings_provider.dart';
 import '../../widgets/amount_text.dart';
+import 'backup_service.dart';
 import 'category_manage_page.dart';
 
 /// 设置页（MVP：深色模式 / 导出 CSV / 清空数据 / 关于）
@@ -50,6 +54,18 @@ class SettingsPage extends StatelessWidget {
             title: const Text('导出数据 CSV'),
             subtitle: const Text('导出全部流水到应用文档目录'),
             onTap: () => _exportCsv(context),
+          ),
+          ListTile(
+            leading: const Icon(Icons.backup_outlined),
+            title: const Text('备份数据 (JSON)'),
+            subtitle: const Text('完整备份到文件，换机恢复不丢数据'),
+            onTap: () => _backup(context),
+          ),
+          ListTile(
+            leading: const Icon(Icons.restore),
+            title: const Text('恢复数据'),
+            subtitle: const Text('从备份文件恢复（覆盖当前数据）'),
+            onTap: () => _restore(context),
           ),
           ListTile(
             leading: const Icon(Icons.delete_outline),
@@ -95,6 +111,69 @@ class SettingsPage extends StatelessWidget {
     final file = File('${dir.path}${Platform.pathSeparator}$name');
     await file.writeAsString(buffer.toString());
     messenger.showSnackBar(SnackBar(content: Text('已导出：${file.path}')));
+  }
+
+  Future<void> _backup(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final json = await BackupService.buildBackupJson();
+      final name =
+          'campus_wallet_backup_${DateFormat('yyyyMMdd_HHmmss').format(DateTime.now())}.json';
+      final uri = await FilePicker.saveFile(
+        dialogTitle: '保存备份文件',
+        fileName: name,
+        bytes: Uint8List.fromList(utf8.encode(json)),
+        mimeType: 'application/json',
+      );
+      if (uri != null) {
+        messenger.showSnackBar(SnackBar(content: Text('已备份：$uri')));
+      }
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('备份失败：$e')));
+    }
+  }
+
+  Future<void> _restore(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final files = await FilePicker.pickFiles(
+        dialogTitle: '选择备份文件',
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+      if (files.isEmpty) return;
+      final bytes = await files.first.xFile.readAsBytes();
+      final content = utf8.decode(bytes);
+      if (content.isEmpty) {
+        messenger.showSnackBar(const SnackBar(content: Text('读取文件失败')));
+        return;
+      }
+      if (!context.mounted) return;
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('恢复数据？'),
+          content: const Text('恢复后将覆盖当前全部数据，且无法撤销。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('确认恢复'),
+            ),
+          ],
+        ),
+      );
+      if (ok != true) return;
+      await BackupService.restoreFromJson(content);
+      messenger.showSnackBar(const SnackBar(content: Text('恢复成功')));
+    } on FormatException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text('恢复失败：$e')));
+    }
   }
 
   Future<void> _clearAll(BuildContext context) async {
