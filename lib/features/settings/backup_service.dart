@@ -3,6 +3,7 @@ import 'dart:convert';
 import '../../core/data/dao.dart';
 import '../../core/models/category.dart';
 import '../../core/models/category_budget.dart';
+import '../../core/models/recurring_bill.dart';
 import '../../core/models/transaction.dart';
 
 /// 备份 / 恢复服务（纯本地 JSON，无网络）
@@ -12,7 +13,7 @@ class BackupService {
   static const appTag = 'campus_wallet';
   static const schemaVersion = 1;
 
-  /// 生成完整备份 JSON 字符串（分类、流水、设置、配额）
+  /// 生成完整备份 JSON 字符串（分类、流水、设置、配额、周期账单）
   static Future<String> buildBackupJson() async {
     final dao = Dao.instance;
     final data = <String, dynamic>{
@@ -25,6 +26,8 @@ class BackupService {
       'settings': await dao.allSettings(),
       'category_budgets':
           (await dao.allCategoryBudgets()).map((b) => b.toMap()).toList(),
+      'recurring_bills':
+          (await dao.allRecurringBills()).map((b) => b.toMap()).toList(),
     };
     return const JsonEncoder.withIndent('  ').convert(data);
   }
@@ -52,6 +55,12 @@ class BackupService {
     final budgets = _parseList<Map<String, dynamic>>(decoded['category_budgets'])
         .map(CategoryBudget.fromMap)
         .toList();
+    // 旧版备份可能没有周期账单字段，视为空列表
+    final recurringBills = decoded['recurring_bills'] is List
+        ? (_parseList<Map<String, dynamic>>(decoded['recurring_bills'])
+            .map(RecurringBill.fromMap)
+            .toList())
+        : const <RecurringBill>[];
     final settingsRaw = decoded['settings'];
     final settings = <String, String>{};
     if (settingsRaw is Map) {
@@ -67,6 +76,7 @@ class BackupService {
       transactions: transactions,
       settings: settings,
       categoryBudgets: budgets,
+      recurringBills: recurringBills,
     );
   }
 
