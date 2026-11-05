@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">生活费账本</string>
+    <string name="widget_description">生活费倒计时与剩余可用额度</string>
+</resources>
