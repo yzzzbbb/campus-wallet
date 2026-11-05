@@ -141,6 +141,7 @@ class Dao {
     required List<Transaction> transactions,
     required Map<String, String> settings,
     required List<CategoryBudget> categoryBudgets,
+    List<RecurringBill> recurringBills = const [],
   }) async {
     final db = await _db;
     await db.transaction((txn) async {
@@ -148,6 +149,7 @@ class Dao {
       await txn.delete('category_budgets');
       await txn.delete('settings');
       await txn.delete('categories');
+      await txn.delete('recurring_bills');
       for (final c in categories) {
         await txn.insert(
           'categories',
@@ -173,6 +175,13 @@ class Dao {
         await txn.insert(
           'category_budgets',
           b.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      for (final r in recurringBills) {
+        await txn.insert(
+          'recurring_bills',
+          r.toMap(),
           conflictAlgorithm: ConflictAlgorithm.replace,
         );
       }
@@ -241,6 +250,15 @@ class Dao {
   /// 清空全部周期账单（测试重置用）
   Future<void> clearRecurringBills() async {
     await (await _db).delete('recurring_bills');
+  }
+
+  /// 全部周期账单（备份用）
+  Future<List<RecurringBill>> allRecurringBills() async {
+    final rows = await (await _db).query(
+      'recurring_bills',
+      orderBy: 'next_due_date ASC, id ASC',
+    );
+    return rows.map(RecurringBill.fromMap).toList();
   }
 
   // ---------- settings ----------
