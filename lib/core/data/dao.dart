@@ -2,6 +2,7 @@ import 'package:sqflite/sqflite.dart' hide Transaction;
 
 import '../models/category.dart';
 import '../models/category_budget.dart';
+import '../models/recurring_bill.dart';
 import '../models/transaction.dart';
 import 'app_database.dart';
 
@@ -176,6 +177,44 @@ class Dao {
         );
       }
     });
+  }
+
+  // ---------- recurring bills ----------
+
+  Future<List<RecurringBill>> recurringBills() async {
+    final rows = await (await _db).query(
+      'recurring_bills',
+      orderBy: 'next_due_date ASC, id ASC',
+    );
+    return rows.map(RecurringBill.fromMap).toList();
+  }
+
+  /// 到期日 <= [date] 的账单（date-only 比较，字符串即可）
+  Future<List<RecurringBill>> recurringBillsDueOn(DateTime date) async {
+    final d = '${date.year.toString().padLeft(4, '0')}-'
+        '${date.month.toString().padLeft(2, '0')}-'
+        '${date.day.toString().padLeft(2, '0')}';
+    final rows = await (await _db).query(
+      'recurring_bills',
+      where: 'next_due_date <= ?',
+      whereArgs: [d],
+      orderBy: 'next_due_date ASC, id ASC',
+    );
+    return rows.map(RecurringBill.fromMap).toList();
+  }
+
+  Future<int> insertRecurringBill(RecurringBill b) async =>
+      (await _db).insert('recurring_bills', b.toMap());
+
+  Future<void> updateRecurringBill(RecurringBill b) async => (await _db)
+      .update('recurring_bills', b.toMap(), where: 'id = ?', whereArgs: [b.id]);
+
+  Future<void> deleteRecurringBill(int id) async =>
+      (await _db).delete('recurring_bills', where: 'id = ?', whereArgs: [id]);
+
+  /// 清空全部周期账单（测试重置用）
+  Future<void> clearRecurringBills() async {
+    await (await _db).delete('recurring_bills');
   }
 
   // ---------- settings ----------
