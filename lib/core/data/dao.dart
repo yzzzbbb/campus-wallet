@@ -120,6 +120,64 @@ class Dao {
     return r.first['c'] as int;
   }
 
+  /// 全部设置键值对（备份用）
+  Future<Map<String, String>> allSettings() async {
+    final rows = await (await _db).query('settings');
+    return {
+      for (final r in rows) r['key'] as String: r['value'] as String,
+    };
+  }
+
+  /// 全部分类配额（备份用）
+  Future<List<CategoryBudget>> allCategoryBudgets() async {
+    final rows = await (await _db).query('category_budgets');
+    return rows.map(CategoryBudget.fromMap).toList();
+  }
+
+  /// 全量替换（恢复用）：在事务中清空并写入备份数据
+  Future<void> replaceAllData({
+    required List<Category> categories,
+    required List<Transaction> transactions,
+    required Map<String, String> settings,
+    required List<CategoryBudget> categoryBudgets,
+  }) async {
+    final db = await _db;
+    await db.transaction((txn) async {
+      await txn.delete('transactions');
+      await txn.delete('category_budgets');
+      await txn.delete('settings');
+      await txn.delete('categories');
+      for (final c in categories) {
+        await txn.insert(
+          'categories',
+          c.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      for (final t in transactions) {
+        await txn.insert(
+          'transactions',
+          t.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      for (final e in settings.entries) {
+        await txn.insert(
+          'settings',
+          {'key': e.key, 'value': e.value},
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+      for (final b in categoryBudgets) {
+        await txn.insert(
+          'category_budgets',
+          b.toMap(),
+          conflictAlgorithm: ConflictAlgorithm.replace,
+        );
+      }
+    });
+  }
+
   // ---------- settings ----------
 
   Future<String?> getSetting(String key) async {
