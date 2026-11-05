@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/models/account.dart';
 import '../../core/models/category.dart';
 import '../../core/models/transaction.dart';
+import '../../state/account_provider.dart';
 import '../../state/category_provider.dart';
 import '../../state/transaction_provider.dart';
 import '../../widgets/category_icon.dart';
@@ -26,6 +28,7 @@ class _TransactionEditPageState extends State<TransactionEditPage> {
   late String _type;
   String _amountText = '';
   int? _categoryId;
+  int? _accountId;
   late DateTime _date;
   late final TextEditingController _noteController;
 
@@ -36,6 +39,7 @@ class _TransactionEditPageState extends State<TransactionEditPage> {
     _type = e?.type ?? widget.initialType;
     if (e != null) {
       _categoryId = e.categoryId;
+      _accountId = e.accountId;
       _date = e.occurredAt;
       _amountText = _centsToInput(e.amountCents);
       _noteController = TextEditingController(text: e.note);
@@ -113,6 +117,7 @@ class _TransactionEditPageState extends State<TransactionEditPage> {
         type: _type,
         amountCents: cents,
         categoryId: _categoryId!,
+        accountId: _accountId,
         note: note,
         occurredAt: _date,
         createdAt: DateTime.now(),
@@ -122,6 +127,7 @@ class _TransactionEditPageState extends State<TransactionEditPage> {
         type: _type,
         amountCents: cents,
         categoryId: _categoryId,
+        accountId: _accountId,
         note: note,
         occurredAt: _date,
       ));
@@ -216,6 +222,11 @@ class _TransactionEditPageState extends State<TransactionEditPage> {
                 border: OutlineInputBorder(),
               ),
             ),
+            const SizedBox(height: 16),
+            _AccountSelector(
+              selectedId: _accountId,
+              onSelect: (id) => setState(() => _accountId = id),
+            ),
             const SizedBox(height: 24),
             FilledButton(
               onPressed: _save,
@@ -227,6 +238,43 @@ class _TransactionEditPageState extends State<TransactionEditPage> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _AccountSelector extends StatelessWidget {
+  const _AccountSelector({required this.selectedId, required this.onSelect});
+
+  final int? selectedId;
+  final void Function(int? id) onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<List<Account>>(
+      future: context.read<AccountProvider>().accounts(),
+      builder: (context, snap) {
+        final accounts = snap.data ?? const <Account>[];
+        return DropdownButtonFormField<int?>(
+          initialValue: selectedId,
+          decoration: const InputDecoration(
+            labelText: '账户',
+            prefixIcon: Icon(Icons.account_balance_wallet_outlined),
+            border: OutlineInputBorder(),
+          ),
+          items: [
+            const DropdownMenuItem<int?>(
+              value: null,
+              child: Text('不指定账户'),
+            ),
+            for (final a in accounts)
+              DropdownMenuItem<int?>(
+                value: a.id,
+                child: Text(a.name),
+              ),
+          ],
+          onChanged: onSelect,
+        );
+      },
     );
   }
 }
