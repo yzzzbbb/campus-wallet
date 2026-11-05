@@ -14,6 +14,7 @@ import 'state/budget_provider.dart';
 import 'state/notification_service.dart';
 import 'state/settings_provider.dart';
 import 'state/transaction_provider.dart';
+import 'state/widget_sync.dart';
 
 /// 主壳：底部导航 4 Tab（首页 / 流水 / 统计 / 我的）
 class MainShell extends StatefulWidget {
@@ -29,7 +30,34 @@ class _MainShellState extends State<MainShell> {
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _checkBudgetAlert());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkBudgetAlert();
+      _syncWidget();
+    });
+  }
+
+  /// 同步倒计时摘要到桌面小组件（Android）
+  Future<void> _syncWidget() async {
+    if (!mounted) return;
+    final budget = context.read<BudgetProvider>();
+    if (!budget.loaded) return;
+    final setting = budget.setting;
+    if (setting.allowanceAmountCents <= 0) return;
+    final tx = context.read<TransactionProvider>();
+    final monthKey = FinanceMath.monthKey(DateTime.now());
+    final spent = await tx.monthExpenseCents(monthKey);
+    final days = budget.daysToNextPay;
+    final remaining = budget.effectiveMonthlyBudgetCents - spent;
+    final daily = FinanceMath.dailyAvailable(
+      remainingCents: remaining,
+      daysToNextPay: days,
+    );
+    await WidgetSync.syncSummary(
+      days: days,
+      remainingCents: remaining,
+      dailyCents: (daily * 100).round(),
+      monthExpenseCents: spent,
+    );
   }
 
   /// 打开应用时检查预算使用率并本地通知（开关在设置页）
