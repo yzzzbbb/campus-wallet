@@ -42,4 +42,10 @@ class TransactionProvider extends ChangeNotifier {
 
   Future<Map<int, int>> expenseByCategory(String monthKey) =>
       Dao.instance.expenseByCategory(monthKey);
+
+  Future<Map<String, int>> expenseByMonthOfYear(int year) =>
+      Dao.instance.expenseByMonthOfYear(year);
+
+  Future<Map<String, int>> expenseByDayOfYear(int year) =>
+      Dao.instance.expenseByDayOfYear(year);
 }
