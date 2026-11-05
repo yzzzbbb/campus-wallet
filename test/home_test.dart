@@ -6,6 +6,7 @@ import 'package:campus_wallet/core/models/transaction.dart';
 import 'package:campus_wallet/features/home/home_page.dart';
 import 'package:campus_wallet/state/budget_provider.dart';
 import 'package:campus_wallet/state/category_provider.dart';
+import 'package:campus_wallet/state/recurring_bills_provider.dart';
 import 'package:campus_wallet/state/transaction_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -38,6 +39,7 @@ void main() {
           ChangeNotifierProvider.value(value: tp),
           ChangeNotifierProvider.value(value: cp),
           ChangeNotifierProvider.value(value: bp),
+          ChangeNotifierProvider.value(value: RecurringBillsProvider()),
         ],
         child: const MaterialApp(home: HomePage()),
       ),
