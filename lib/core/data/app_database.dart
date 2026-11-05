@@ -17,7 +17,7 @@ class AppDatabase {
     final dbPath = p.join(await getDatabasesPath(), dbName);
     _db = await openDatabase(
       dbPath,
-      version: 2,
+      version: 3,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -42,6 +42,7 @@ class AppDatabase {
         type TEXT NOT NULL,
         amount_cents INTEGER NOT NULL,
         category_id INTEGER NOT NULL,
+        account_id INTEGER,
         note TEXT NOT NULL DEFAULT '',
         occurred_at TEXT NOT NULL,
         created_at TEXT NOT NULL
@@ -76,6 +77,24 @@ class AppDatabase {
         note TEXT NOT NULL DEFAULT ''
       )
     ''');
+    await db.execute('''
+      CREATE TABLE accounts(
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        icon TEXT NOT NULL DEFAULT 'account_balance_wallet',
+        color INTEGER NOT NULL DEFAULT 0xFF16BD8C,
+        sort INTEGER NOT NULL DEFAULT 0,
+        builtin INTEGER NOT NULL DEFAULT 0
+      )
+    ''');
+    const accountSeeds = <Map<String, Object>>[
+      {'name': '现金', 'icon': 'payments', 'color': 0xFF66BB6A, 'sort': 1},
+      {'name': '饭卡', 'icon': 'restaurant', 'color': 0xFFFF7043, 'sort': 2},
+      {'name': '银行卡', 'icon': 'credit_card', 'color': 0xFF42A5F5, 'sort': 3},
+    ];
+    for (final a in accountSeeds) {
+      await db.insert('accounts', {...a, 'builtin': 1});
+    }
 
     const seeds = <Map<String, Object>>[
       {'name': '餐饮', 'type': 'expense', 'icon': 'restaurant', 'color': 0xFFFF7043, 'sort': 1},
@@ -112,6 +131,29 @@ class AppDatabase {
           note TEXT NOT NULL DEFAULT ''
         )
       ''');
+    }
+    if (oldVersion < 3) {
+      await db.execute(
+        'ALTER TABLE transactions ADD COLUMN account_id INTEGER',
+      );
+      await db.execute('''
+        CREATE TABLE accounts(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          icon TEXT NOT NULL DEFAULT 'account_balance_wallet',
+          color INTEGER NOT NULL DEFAULT 0xFF16BD8C,
+          sort INTEGER NOT NULL DEFAULT 0,
+          builtin INTEGER NOT NULL DEFAULT 0
+        )
+      ''');
+      const accountSeeds = <Map<String, Object>>[
+        {'name': '现金', 'icon': 'payments', 'color': 0xFF66BB6A, 'sort': 1},
+        {'name': '饭卡', 'icon': 'restaurant', 'color': 0xFFFF7043, 'sort': 2},
+        {'name': '银行卡', 'icon': 'credit_card', 'color': 0xFF42A5F5, 'sort': 3},
+      ];
+      for (final a in accountSeeds) {
+        await db.insert('accounts', {...a, 'builtin': 1});
+      }
     }
   }
 
