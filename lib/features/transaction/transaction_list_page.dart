@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/logic/finance_math.dart';
+import '../../core/models/account.dart';
 import '../../core/models/category.dart';
 import '../../core/models/transaction.dart';
 import '../../core/theme/app_theme.dart';
+import '../../state/account_provider.dart';
 import '../../state/category_provider.dart';
 import '../../state/transaction_provider.dart';
 import '../../widgets/amount_text.dart';
@@ -99,17 +101,26 @@ class _TransactionListPageState extends State<TransactionListPage> {
               ),
             ),
             Expanded(
-              child: FutureBuilder<(List<Transaction>, List<Category>)>(
+              child: FutureBuilder<(List<Transaction>, List<Category>, List<Account>)>(
                 future: Future.wait([
                   tx.transactionsOfMonth(monthKey),
                   context.read<CategoryProvider>().categories(),
+                  context.read<AccountProvider>().accounts(),
                 ]).then(
-                  (r) => (r[0] as List<Transaction>, r[1] as List<Category>),
+                  (r) => (
+                    r[0] as List<Transaction>,
+                    r[1] as List<Category>,
+                    r[2] as List<Account>,
+                  ),
                 ),
                 builder: (context, snap) {
                   final txs = snap.data?.$1 ?? const <Transaction>[];
                   final cats = snap.data?.$2 ?? const <Category>[];
+                  final accounts = snap.data?.$3 ?? const <Account>[];
                   final byId = {for (final c in cats) c.id: c};
+                  final accountNameById = {
+                    for (final a in accounts) a.id: a.name,
+                  };
                   if (txs.isEmpty) {
                     return Center(
                       child: Text(
@@ -138,6 +149,9 @@ class _TransactionListPageState extends State<TransactionListPage> {
                           _TransactionTile(
                             t: t,
                             category: byId[t.categoryId],
+                            accountName: t.accountId == null
+                                ? null
+                                : accountNameById[t.accountId],
                             onTap: () => _openEdit(t),
                             onLongPress: () => _confirmDelete(t),
                           ),
@@ -192,12 +206,14 @@ class _TransactionTile extends StatelessWidget {
   const _TransactionTile({
     required this.t,
     required this.category,
+    required this.accountName,
     required this.onTap,
     required this.onLongPress,
   });
 
   final Transaction t;
   final Category? category;
+  final String? accountName;
   final VoidCallback onTap;
   final VoidCallback onLongPress;
 
@@ -218,7 +234,31 @@ class _TransactionTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(category?.name ?? '未知分类', style: const TextStyle(fontSize: 15)),
+                  Row(
+                    children: [
+                      Text(category?.name ?? '未知分类', style: const TextStyle(fontSize: 15)),
+                      if (accountName != null) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 1,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            accountName!,
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.primary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                   if (t.note.isNotEmpty)
                     Text(
                       t.note,
