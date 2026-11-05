@@ -79,3 +79,70 @@ List<OverrunEntry> buildOverrunTop3({
   entries.sort((a, b) => b.overspentCents.compareTo(a.overspentCents));
   return entries.take(3).toList();
 }
+
+/// 年度月度总计（年度柱状图）
+class MonthTotal {
+  final int month; // 1..12
+  final int cents;
+
+  const MonthTotal({required this.month, required this.cents});
+}
+
+/// 由「'YYYY-MM' -> 支出」构造某年 12 个月总计（缺失月为 0）
+List<MonthTotal> buildYearMonthly({
+  required int year,
+  required Map<String, int> expenseByMonth,
+}) {
+  return [
+    for (var m = 1; m <= 12; m++)
+      MonthTotal(
+        month: m,
+        cents: expenseByMonth[
+                '${year.toString().padLeft(4, '0')}-${m.toString().padLeft(2, '0')}'] ??
+            0,
+      ),
+  ];
+}
+
+/// 日历热力图单元
+class DayCell {
+  final DateTime date;
+  final int cents;
+  final int level; // -1 前导占位；0 无支出；1/2/3 支出强度
+
+  const DayCell({required this.date, required this.cents, required this.level});
+}
+
+/// 热力图档位：0 无支出，1 少于 ¥20，2 少于 ¥100，3 其余
+int heatLevelFor(int cents) {
+  if (cents <= 0) return 0;
+  if (cents < 2000) return 1;
+  if (cents < 10000) return 2;
+  return 3;
+}
+
+/// 周一起始的年度日历网格（前导占位补齐整周）
+List<DayCell> buildCalendarCells({
+  required int year,
+  required Map<String, int> expenseByDay,
+}) {
+  final first = DateTime(year, 1, 1);
+  final last = DateTime(year, 12, 31);
+  final lead = (first.weekday - DateTime.monday) % 7;
+  final cells = <DayCell>[];
+  for (var i = 0; i < lead; i++) {
+    cells.add(DayCell(
+      date: first.subtract(Duration(days: lead - i)),
+      cents: 0,
+      level: -1,
+    ));
+  }
+  for (var d = first; !d.isAfter(last); d = d.add(const Duration(days: 1))) {
+    final key = '${d.year.toString().padLeft(4, '0')}-'
+        '${d.month.toString().padLeft(2, '0')}-'
+        '${d.day.toString().padLeft(2, '0')}';
+    final cents = expenseByDay[key] ?? 0;
+    cells.add(DayCell(date: d, cents: cents, level: heatLevelFor(cents)));
+  }
+  return cells;
+}
