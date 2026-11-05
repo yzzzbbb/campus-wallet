@@ -13,6 +13,7 @@ import '../../state/notification_service.dart';
 import '../../state/settings_provider.dart';
 import '../../widgets/amount_text.dart';
 import '../bills/recurring_bills_page.dart';
+import 'account_manage_page.dart';
 import 'backup_service.dart';
 import 'category_manage_page.dart';
 
@@ -35,6 +36,15 @@ class SettingsPage extends StatelessWidget {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const CategoryManagePage()),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.account_balance_wallet_outlined),
+            title: const Text('账户管理'),
+            subtitle: const Text('现金 / 饭卡 / 银行卡等，记账时选择归属'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AccountManagePage()),
             ),
           ),
           ListTile(
@@ -101,7 +111,7 @@ class SettingsPage extends StatelessWidget {
             leading: Icon(Icons.info_outline),
             title: Text('关于'),
             subtitle: Text(
-              'campus-wallet v0.1\n'
+              'campus-wallet v0.5\n'
               '面向大学生的生活费记账与规划 App\n'
               '无广告 · 无联网 · 数据全在本机',
             ),
