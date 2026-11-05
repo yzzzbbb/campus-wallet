@@ -1,6 +1,7 @@
 import 'package:campus_wallet/core/data/app_database.dart';
 import 'package:campus_wallet/core/data/dao.dart';
 import 'package:campus_wallet/main_shell.dart';
+import 'package:campus_wallet/state/account_provider.dart';
 import 'package:campus_wallet/state/budget_provider.dart';
 import 'package:campus_wallet/state/category_provider.dart';
 import 'package:campus_wallet/state/recurring_bills_provider.dart';
@@ -29,6 +30,7 @@ void main() {
         providers: [
           ChangeNotifierProvider(create: (_) => TransactionProvider()),
           ChangeNotifierProvider(create: (_) => CategoryProvider()),
+          ChangeNotifierProvider(create: (_) => AccountProvider()),
           ChangeNotifierProvider(create: (_) => RecurringBillsProvider()),
           ChangeNotifierProvider(create: (_) => BudgetProvider()),
           ChangeNotifierProvider(create: (_) => SettingsProvider()),
